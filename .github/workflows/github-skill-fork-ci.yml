@@ -1,0 +1,44 @@
+name: GitHub skill integration CI
+on:
+  push:
+    branches: [ci/github-skill-consolidation]
+permissions:
+  contents: read
+jobs:
+  python:
+    if: github.repository == 'yukincom/hermes-agent'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+      - run: uv sync --locked --python 3.11 --extra dev
+      - name: GitHub loading and authentication regressions
+        run: scripts/run_tests.sh tests/skills/test_github_auth_environment.py tests/skills/test_github_compatibility.py tests/tools/test_skills_tool.py tests/tools/test_skills_tool_profile_scope.py tests/tools/test_skills_tool_discovery_cache.py tests/agent/test_skill_commands.py tests/agent/test_skill_bundles.py tests/cron/test_cron_prompt_injection_skill.py tests/skills/test_github_skill.py tests/skills/test_github_credential_token.py tests/hermes_cli/test_tips.py -j 2
+        env:
+          HERMES_TEST_FILE_RETRIES: '0'
+      - run: uv run ruff check cli.py tools/skills_tool.py tests/skills/test_github_auth_environment.py tests/skills/test_github_compatibility.py
+      - run: bash -n skills/software-development/github/scripts/gh-env.sh
+  desktop:
+    if: github.repository == 'yukincom/hermes-agent'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 26
+          cache: npm
+      - run: npm install -g npm@12
+      - run: npm ci
+      - run: npm run test:ui --workspace apps/desktop -- src/store/suggestion-providers/github.test.ts src/store/suggestion-providers/mcp.test.ts src/store/suggestion-providers/skill.test.ts
+      - run: npm run typecheck --workspace apps/desktop
+      - run: npm run typecheck --workspace web
+      - name: Lint changed suggestions and translations
+        run: npx eslint apps/desktop/src/store/suggestion-providers/github.ts apps/desktop/src/store/suggestion-providers/github.test.ts web/src/i18n/*.ts
