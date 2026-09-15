@@ -16,7 +16,11 @@ jobs:
       - run: scripts/run_tests.sh tests/tools/test_tts_streaming.py tests/tools/test_voicevox_streaming.py tests/hermes_cli/test_web_server_speak_stream.py -j 2
         env:
           HERMES_TEST_FILE_RETRIES: '0'
-      - run: python3 scripts/check-windows-footguns.py tools/tts_streaming.py hermes_cli/web_routers/audio.py tests/tools/test_voicevox_streaming.py
+      - name: STT no-speech and dispatch regression tests
+        run: scripts/run_tests.sh tests/tools/test_transcription_command_providers.py tests/tools/test_transcription.py tests/tools/test_transcription_plugin_dispatch.py tests/tools/test_pre_transcription_hook.py tests/tools/test_voice_stop_phrase.py -j 2
+        env:
+          HERMES_TEST_FILE_RETRIES: '0'
+      - run: python3 scripts/check-windows-footguns.py tools/tts_streaming.py hermes_cli/web_routers/audio.py tests/tools/test_voicevox_streaming.py tools/transcription_command.py tests/tools/test_transcription_command_providers.py
   desktop:
     if: github.repository == 'yukincom/hermes-agent'
     runs-on: ubuntu-latest
